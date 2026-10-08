@@ -21,13 +21,15 @@ const DEVICES=[
  {id:'custom',label:'직접 입력'}];
 const HARM=[{id:'analog',label:'유사'},{id:'comp',label:'보색'},{id:'mono',label:'단색'},{id:'pastel',label:'파스텔'},{id:'neon',label:'네온'}];
 // 되돌리기·링크 공유에 저장되는 값
-const KEYS=['style','seed','colors','harmony','complexity','softness','grain','text','calOn','calYear','calMonth','calV','calH','calSize','calText','calPos','calFont','satColor','sunColor','calTone','weekStart','calCard','calHoliday','calToday','imgFit','imgX','imgY','imgDim','imgBlur','marks','markLabels','markLegend'];
+const KEYS=['style','seed','colors','harmony','complexity','softness','grain','text','calOn','calYear','calMonth','calV','calH','calSize','calText','calPos','calFont','satColor','sunColor','calTone','weekStart','calCard','calHoliday','calToday','imgFit','imgX','imgY','imgDim','imgBlur','marks','markLabels','markLegend','calShadow','wdLang','bright','sat'];
 const TYPES=[{id:'leave',label:'연차',color:'#2f6fdb',shape:'fill'},{id:'bday',label:'생일',color:'#e0457b',shape:'ring'},{id:'exam',label:'시험',color:'#e8892a',shape:'line'},{id:'anniv',label:'기념일',color:'#8e4fd6',shape:'fill'},{id:'etc',label:'기타',color:'#2f9e6b',shape:'dot'}];
 const TYPE_MAP=Object.fromEntries(TYPES.map(t=>[t.id,t]));
 const MCOLORS=['#2f6fdb','#e0457b','#e8892a','#8e4fd6','#2f9e6b','#161616'];
 const N_CAND=10;
 const MONTH_EN=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const WD=['일','월','화','수','목','금','토'];
+const WD_EN=['SUN','MON','TUE','WED','THU','FRI','SAT'];
+const wdNames=p=>p.wdLang==='en'?WD_EN:WD;
 const HOLI=new Set(['1-1','3-1','5-5','6-6','8-15','10-3','10-9','12-25']);
 const HOLI_Y={2026:['2-16','2-17','2-18','3-2','5-24','5-25','6-3','8-17','9-24','9-25','9-26','10-5'],2027:['2-6','2-7','2-8','2-9','5-13','8-16','9-14','9-15','9-16','10-4','10-11','12-27']};
 const isHoliday=(y,m,d)=>HOLI.has(`${m}-${d}`)||(HOLI_Y[y]||[]).includes(`${m}-${d}`);
@@ -133,8 +135,14 @@ function drawBg(ctx,w,h,p){
   ctx.fillStyle=main;lines.forEach((l,i)=>ctx.fillText(l,w/2,y0+i*lh));
  }
  ctx.restore();
- if(p.grain>0){const img=ctx.getImageData(0,0,w,h),d=img.data,amt=p.grain*.7;let q=(p.seed*2654435761)>>>0;
-  for(let i=0;i<d.length;i+=4){q=(Math.imul(q,1664525)+1013904223)>>>0;const n=((q>>>24)/255-.5)*amt;d[i]+=n;d[i+1]+=n;d[i+2]+=n;}ctx.putImageData(img,0,0);}
+ // 밝기·채도(50이 원본) + 그레인을 한 번의 픽셀 처리로 적용
+ const br=((p.bright??50)-50)/50*.6,sa=(p.sat??50)/50;
+ if(p.grain>0||br||sa!==1){const img=ctx.getImageData(0,0,w,h),d=img.data,amt=p.grain*.7;let q=(p.seed*2654435761)>>>0;
+  for(let i=0;i<d.length;i+=4){let R=d[i],G=d[i+1],B=d[i+2];
+   if(sa!==1){const g=.2126*R+.7152*G+.0722*B;R=g+(R-g)*sa;G=g+(G-g)*sa;B=g+(B-g)*sa;}
+   if(br>0){R+=(255-R)*br;G+=(255-G)*br;B+=(255-B)*br;}else if(br<0){R*=1+br;G*=1+br;B*=1+br;}
+   if(amt){q=(Math.imul(q,1664525)+1013904223)>>>0;const n=((q>>>24)/255-.5)*amt;R+=n;G+=n;B+=n;}
+   d[i]=R;d[i+1]=G;d[i+2]=B;}ctx.putImageData(img,0,0);}
 }
 
 function drawCal(ctx,w,h,p){
@@ -154,13 +162,13 @@ function drawCal(ctx,w,h,p){
  const ink=dark?'#161616':'#ffffff',inv=dark?'#ffffff':'#161616',red=p.sunColor||(dark?'#cf3a2e':'#ff9d90'),blue=p.satColor||(dark?'#2f5ccc':'#a7c2ff');
  ctx.save();
  if(p.calCard){ctx.fillStyle=dark?'rgba(255,255,255,0.5)':'rgba(0,0,0,0.3)';ctx.beginPath();ctx.roundRect?ctx.roundRect(bx,by,bw,bh,cell*.4):ctx.rect(bx,by,bw,bh);ctx.fill();}
- else if(!dark){ctx.shadowColor='rgba(0,0,0,0.28)';ctx.shadowBlur=cell*.2;}
+ else if(!dark&&p.calShadow){ctx.shadowColor='rgba(0,0,0,0.28)';ctx.shadowBlur=cell*.2;}
  const ox=bx+pad,oy=by+pad;
  ctx.fillStyle=ink;ctx.textBaseline='alphabetic';ctx.textAlign='left';ctx.font=`700 ${cell*tf*1.05}px ${ff(p)}`;
  ctx.fillText(String(Mo+1),ox+cell*.16,oy+cell*1.08);
  ctx.textAlign='right';ctx.font=`500 ${cell*tf*.27}px ${ff(p)}`;ctx.fillText(`${MONTH_EN[Mo]}  ${Y}`,ox+cw-cell*.16,oy+cell*1.04);
  ctx.textAlign='center';ctx.textBaseline='middle';
- for(let i=0;i<7;i++){const dw=(i+ws)%7;ctx.globalAlpha=.75;ctx.fillStyle=p.calHoliday&&dw===0?red:p.calHoliday&&dw===6?blue:ink;ctx.font=`500 ${cell*tf*.26}px ${ff(p)}`;ctx.fillText(WD[dw],ox+cell*(i+.5),oy+headH+wdH*.45);}
+ for(let i=0;i<7;i++){const dw=(i+ws)%7;ctx.globalAlpha=.75;ctx.fillStyle=p.calHoliday&&dw===0?red:p.calHoliday&&dw===6?blue:ink;ctx.font=`500 ${cell*tf*.26}px ${ff(p)}`;ctx.fillText(wdNames(p)[dw],ox+cell*(i+.5),oy+headH+wdH*.45);}
  ctx.globalAlpha=1;
  const now=new Date(),isCur=now.getFullYear()===Y&&now.getMonth()===Mo;
  for(let d=1;d<=days;d++){const idx=off+d-1,col=idx%7,row=Math.floor(idx/7),dw=(col+ws)%7,cx=ox+cell*(col+.5),cy=oy+headH+wdH+rowH*(row+.5)-(lab?cell*.1:0),mk=MK[`${Y}-${Mo+1}-${d}`],isT=p.calToday&&isCur&&d===now.getDate();
@@ -208,7 +216,7 @@ try{const hsh=location.hash.slice(1);if(hsh)init=JSON.parse(decodeURIComponent(e
 const seed0=newSeed(),now0=new Date();
 const S=Object.assign({style:'mesh',seed:seed0,harmony:'analog',colors:palette(seed0,'analog'),complexity:50,softness:60,grain:14,text:'오늘도 천천히',
   calOn:true,calYear:now0.getFullYear(),calMonth:now0.getMonth(),calV:'center',calH:'center',calSize:50,calText:50,calPos:null,calFont:'IBM Plex Sans KR',satColor:null,sunColor:null,extraFonts:[],localFontLabel:'내 PC 폰트 불러오기',svgLabel:'SVG',calTone:'auto',weekStart:0,calCard:false,calHoliday:true,calToday:true,
-  marks:{},markLabels:true,markLegend:false,selDay:null,imgFit:'cover',imgX:50,imgY:50,imgDim:15,imgBlur:0,img:null,candOpen:false,
+  marks:{},markLabels:true,markLegend:false,calShadow:false,wdLang:'ko',bright:50,sat:50,selDay:null,imgFit:'cover',imgX:50,imgY:50,imgDim:15,imgBlur:0,img:null,candOpen:false,
   device:'iphone',customW:1440,customH:3040,showClock:true,past:[],future:[],now:now0,shareLabel:'링크 복사',downloadLabel:'PNG 다운로드',dragging:false},init||{});
 S.candidates=makeCandidates(S.harmony);
 if(S.style==='photo')S.style='mesh'; // 사진은 링크로 공유되지 않음
@@ -340,7 +348,7 @@ function toggleChip(label,key){return h('button',{type:'button',class:cls('chip'
 
 function renderCalSegs(){
  const groups=[['세로 위치','calV',[['top','위'],['center','가운데'],['bottom','아래']]],['가로 위치','calH',[['left','왼쪽'],['center','가운데'],['right','오른쪽']]],
-  ['글자색','calTone',[['auto','자동'],['light','흰색'],['dark','검정']]],['시작 요일','weekStart',[[0,'일요일'],[1,'월요일']]]];
+  ['글자색','calTone',[['auto','자동'],['light','흰색'],['dark','검정']]],['시작 요일','weekStart',[[0,'일요일'],[1,'월요일']]],['요일 표기','wdLang',[['ko','한글'],['en','영문']]]];
  $('calSegs').replaceChildren(...groups.map(([label,key,opts])=>{
   const pos=key==='calV'||key==='calH',seg=h('div',{class:'seg'});
   segButtons(seg,opts,v=>S[key]===v&&!(S.calPos&&pos),v=>commit(Object.assign({[key]:v},pos?{calPos:null}:{})));
@@ -351,7 +359,7 @@ function renderMarks(){
  const Y=S.calYear,Mo=S.calMonth,first=new Date(Y,Mo,1).getDay(),nd=new Date(Y,Mo+1,0).getDate(),off=(first-S.weekStart+7)%7,key=d=>`${Y}-${Mo+1}-${d}`;
  const sel=S.selDay&&S.selDay<=nd?S.selDay:null,cur=sel?S.marks[key(sel)]:null,t=new Date(),isCur=t.getFullYear()===Y&&t.getMonth()===Mo;
  const kids=[];
- for(let i=0;i<7;i++){const dw=(i+S.weekStart)%7;kids.push(h('span',{class:'wd',style:`color:${dw===0?'#cf3a2e':dw===6?'#2f5ccc':'#8a877f'}`},WD[dw]));}
+ for(let i=0;i<7;i++){const dw=(i+S.weekStart)%7;kids.push(h('span',{class:'wd',style:`color:${dw===0?'#cf3a2e':dw===6?'#2f5ccc':'#8a877f'}`},wdNames(S)[dw]));}
  for(let i=0;i<off;i++)kids.push(h('span',{class:'day is-blank'}));
  for(let d=1;d<=nd;d++){const m=S.marks[key(d)],dw=(off+d-1+S.weekStart)%7;
   const fg=m?'#ffffff':dw===0?'#cf3a2e':dw===6?'#2f5ccc':'#1c1c1a',shadow=sel===d?'0 0 0 2px #1c1c1a':isCur&&t.getDate()===d?'inset 0 0 0 1px #b9b6ad':'none';
@@ -414,7 +422,7 @@ function render(){
  const sat=S.satColor||'#2f5ccc',sun=S.sunColor||'#cf3a2e';
  $('satDot').style.background=sat;syncValue($('satColor'),sat);
  $('sunDot').style.background=sun;syncValue($('sunColor'),sun);
- $('calToggles').replaceChildren(toggleChip('카드 배경','calCard'),toggleChip('주말·공휴일 색','calHoliday'),toggleChip('오늘 표시','calToday'));
+ $('calToggles').replaceChildren(toggleChip('카드 배경','calCard'),toggleChip('주말·공휴일 색','calHoliday'),toggleChip('오늘 표시','calToday'),toggleChip('글자 그림자','calShadow'));
 
  // MY DAYS
  renderMarks();
