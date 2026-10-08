@@ -166,7 +166,7 @@ function drawCal(ctx,w,h,p){
  const ox=bx+pad,oy=by+pad;
  ctx.fillStyle=ink;ctx.textBaseline='alphabetic';ctx.textAlign='left';ctx.font=`700 ${cell*tf*1.05}px ${ff(p)}`;
  ctx.fillText(String(Mo+1),ox+cell*.16,oy+cell*1.08);
- ctx.textAlign='right';ctx.font=`500 ${cell*tf*.27}px ${ff(p)}`;ctx.fillText(`${MONTH_EN[Mo]}  ${Y}`,ox+cw-cell*.16,oy+cell*1.04);
+ ctx.textAlign='right';ctx.font=`500 ${cell*tf*.27}px ${ff(p)}`;ctx.fillText(p.wdLang==='en'?`${MONTH_EN[Mo]}  ${Y}`:`${Y}년 ${Mo+1}월`,ox+cw-cell*.16,oy+cell*1.04);
  ctx.textAlign='center';ctx.textBaseline='middle';
  for(let i=0;i<7;i++){const dw=(i+ws)%7;ctx.globalAlpha=.75;ctx.fillStyle=p.calHoliday&&dw===0?red:p.calHoliday&&dw===6?blue:ink;ctx.font=`500 ${cell*tf*.26}px ${ff(p)}`;ctx.fillText(wdNames(p)[dw],ox+cell*(i+.5),oy+headH+wdH*.45);}
  ctx.globalAlpha=1;
@@ -348,7 +348,7 @@ function toggleChip(label,key){return h('button',{type:'button',class:cls('chip'
 
 function renderCalSegs(){
  const groups=[['세로 위치','calV',[['top','위'],['center','가운데'],['bottom','아래']]],['가로 위치','calH',[['left','왼쪽'],['center','가운데'],['right','오른쪽']]],
-  ['글자색','calTone',[['auto','자동'],['light','흰색'],['dark','검정']]],['시작 요일','weekStart',[[0,'일요일'],[1,'월요일']]],['요일 표기','wdLang',[['ko','한글'],['en','영문']]]];
+  ['글자색','calTone',[['auto','자동'],['light','흰색'],['dark','검정']]],['시작 요일','weekStart',[[0,'일요일'],[1,'월요일']]],['표기 언어','wdLang',[['ko','한글'],['en','영문']]]];
  $('calSegs').replaceChildren(...groups.map(([label,key,opts])=>{
   const pos=key==='calV'||key==='calH',seg=h('div',{class:'seg'});
   segButtons(seg,opts,v=>S[key]===v&&!(S.calPos&&pos),v=>commit(Object.assign({[key]:v},pos?{calPos:null}:{})));
