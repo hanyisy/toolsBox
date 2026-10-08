@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>달력 배경화면</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&family=Noto+Serif+KR:wght@400;700&family=Gowun+Dodum&family=Gowun+Batang:wght@400;700&family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Gothic+A1:wght@400;700&family=Black+Han+Sans&family=Do+Hyeon&family=Jua&family=Gaegu:wght@400;700&family=Nanum+Pen+Script&family=Hi+Melody&family=Song+Myung&family=Dongle:wght@400;700&family=Sunflower:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<link href="./style.css" rel="stylesheet">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-title">달력 배경화면</span>
+      <span class="mono-label">WALLPAPER · CALENDAR</span>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn" id="undo" title="되돌리기 (Ctrl+Z)">되돌리기</button>
+      <button type="button" class="btn" id="redo" title="다시 실행 (Ctrl+Shift+Z)">다시 실행</button>
+      <button type="button" class="btn" id="share">링크 복사</button>
+      <button type="button" class="btn btn--outline" id="downloadSvg">SVG</button>
+      <button type="button" class="btn btn--solid" id="downloadPng">PNG 다운로드</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- 미리보기 -->
+    <section class="stage" id="stage">
+      <div class="frame" id="frame">
+        <canvas id="canvas"></canvas>
+        <div class="clock" id="clock">
+          <div class="clock-top">
+            <span class="clock-date" id="dateLabel"></span>
+            <span class="clock-time" id="timeLabel"></span>
+          </div>
+          <div class="clock-bar"></div>
+        </div>
+      </div>
+
+      <div class="meta">
+        <div class="meta-info">
+          <span id="resLabel"></span><span>—</span><span id="styleName"></span><span>—</span><span>No. <span id="seedLabel"></span></span><span>—</span><span>달력은 드래그로 이동</span>
+        </div>
+        <button type="button" class="chip" id="candBtn">다른 후보 보기</button>
+      </div>
+
+      <div class="cand" id="cand" hidden>
+        <div class="cand-head">
+          <span class="cand-title">다른 후보</span>
+          <span class="hint">옆으로 드래그해서 보기 · 클릭하면 적용 · 스페이스바로 새로 생성</span>
+        </div>
+        <div class="strip" id="strip"></div>
+      </div>
+    </section>
+
+    <!-- 설정 패널 -->
+    <aside class="panel">
+      <button type="button" class="btn-primary" id="randomize">배경 랜덤 생성</button>
+
+      <!-- CALENDAR -->
+      <div class="group">
+        <div class="group-head">
+          <span class="mono-label">CALENDAR</span>
+          <label class="check">
+            <span>표시</span>
+            <input type="checkbox" id="calOn">
+          </label>
+        </div>
+        <div class="month-nav">
+          <button type="button" class="month-arrow" id="prevMonth" aria-label="이전 달">‹</button>
+          <button type="button" class="month-label" id="monthLabel" title="이번 달로"></button>
+          <button type="button" class="month-arrow" id="nextMonth" aria-label="다음 달">›</button>
+        </div>
+        <div class="seg-rows" id="calSegs"></div>
+        <div class="field">
+          <div class="field-head"><span>달력 크기</span><span class="num" data-out="calSize"></span></div>
+          <input type="range" min="0" max="100" data-key="calSize">
+        </div>
+        <div class="field">
+          <div class="field-head"><span>글자 크기</span><span class="num" data-out="calText"></span></div>
+          <input type="range" min="0" max="100" data-key="calText">
+        </div>
+        <div class="field field--gap">
+          <div class="field-head"><span>글꼴</span><span class="note">웹폰트는 어디서나 적용돼요</span></div>
+          <select class="select" id="calFont"></select>
+          <div class="row-2">
+            <button type="button" class="btn-sm" id="loadLocalFonts">내 PC 폰트 불러오기</button>
+            <button type="button" class="btn-sm" id="pickFontFile">폰트 파일 올리기</button>
+            <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2" hidden>
+          </div>
+        </div>
+        <div class="weekend">
+          <span class="weekend-label">주말 색</span>
+          <label class="color-pick">
+            <span class="color-dot" id="satDot"><input type="color" id="satColor"></span>
+            <span>토요일</span>
+          </label>
+          <label class="color-pick">
+            <span class="color-dot" id="sunDot"><input type="color" id="sunColor"></span>
+            <span>일요일·공휴일</span>
+          </label>
+          <button type="button" class="link" id="resetWeekend">기본값</button>
+        </div>
+        <div class="chips" id="calToggles"></div>
+      </div>
+
+      <!-- MY DAYS -->
+      <div class="group group--line">
+        <div class="group-head">
+          <span class="mono-label">MY DAYS</span>
+          <span class="note">날짜를 눌러 표시하기</span>
+        </div>
+        <div class="mini-cal" id="markGrid"></div>
+        <div class="box" id="selBox" hidden>
+          <div class="box-head">
+            <span class="box-title" id="selTitle"></span>
+            <button type="button" class="close" id="closeSel">닫기</button>
+          </div>
+          <div class="chips" id="markTypes"></div>
+          <div class="box-body" id="selMarked" hidden>
+            <input type="text" class="text-input text-input--white" id="selLabel" maxlength="16" placeholder="예: 엄마 생일, 토익 시험">
+            <div class="seg seg--dark" id="shapeOpts"></div>
+            <div class="box-foot">
+              <div class="mark-colors">
+                <span id="markColors" class="mark-colors"></span>
+                <label class="mark-color mark-color--custom" id="customMarkWrap" title="직접 고르기">
+                  <input type="color" id="customMarkColor">
+                </label>
+              </div>
+              <button type="button" class="link" id="removeMark">표시 지우기</button>
+            </div>
+          </div>
+        </div>
+        <div class="month-marks" id="monthMarks" hidden></div>
+        <div class="chips" id="markToggles"></div>
+      </div>
+
+      <!-- DEVICE -->
+      <div class="group group--line group--tight">
+        <span class="mono-label">DEVICE</span>
+        <div class="chips" id="devices"></div>
+        <div class="custom-size" id="customBox" hidden>
+          <input type="number" class="num-input" id="customW">
+          <span class="x">×</span>
+          <input type="number" class="num-input" id="customH">
+        </div>
+        <label class="check check--row" id="clockRow">
+          <span>잠금화면 시계 미리보기</span>
+          <input type="checkbox" id="showClock">
+        </label>
+      </div>
+
+      <!-- BACKGROUND -->
+      <div class="group group--line group--tight">
+        <span class="mono-label">BACKGROUND</span>
+        <div class="styles" id="styles"></div>
+        <label class="upload">
+          <span id="uploadLabel">+ 내 사진 업로드</span>
+          <input type="file" id="photoFile" accept="image/*" hidden>
+        </label>
+        <div class="box" id="photoBox" hidden>
+          <div class="seg-row">
+            <span class="seg-label">맞춤</span>
+            <div class="seg seg--dark seg--narrow" id="fitOpts"></div>
+          </div>
+          <div class="field">
+            <div class="field-head"><span>가로 위치</span><span class="num" data-out="imgX"></span></div>
+            <input type="range" min="0" max="100" data-key="imgX">
+          </div>
+          <div class="field">
+            <div class="field-head"><span>세로 위치</span><span class="num" data-out="imgY"></span></div>
+            <input type="range" min="0" max="100" data-key="imgY">
+          </div>
+          <div class="field">
+            <div class="field-head"><span>어둡게</span><span class="num" data-out="imgDim"></span></div>
+            <input type="range" min="0" max="100" data-key="imgDim">
+          </div>
+          <div class="field">
+            <div class="field-head"><span>흐림</span><span class="num" data-out="imgBlur"></span></div>
+            <input type="range" min="0" max="100" data-key="imgBlur">
+          </div>
+          <button type="button" class="link link--start" id="removePhoto">사진 지우기</button>
+        </div>
+        <input type="text" class="text-input" id="typoText" maxlength="40" placeholder="문구 입력" hidden>
+      </div>
+
+      <!-- COLOR -->
+      <div class="group group--line group--tight">
+        <div class="group-head">
+          <span class="mono-label">COLOR</span>
+          <button type="button" class="link" id="shuffleColors">색만 섞기</button>
+        </div>
+        <div class="swatches" id="swatches"></div>
+        <div class="seg" id="harmonies"></div>
+      </div>
+
+      <!-- ADJUST -->
+      <div class="group group--line">
+        <span class="mono-label">ADJUST</span>
+        <div class="field">
+          <div class="field-head"><span>복잡도</span><span class="num" data-out="complexity"></span></div>
+          <input type="range" min="0" max="100" data-key="complexity">
+        </div>
+        <div class="field">
+          <div class="field-head"><span>부드러움</span><span class="num" data-out="softness"></span></div>
+          <input type="range" min="0" max="100" data-key="softness">
+        </div>
+        <div class="field">
+          <div class="field-head"><span>그레인</span><span class="num" data-out="grain"></span></div>
+          <input type="range" min="0" max="100" data-key="grain">
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+<script src="./app.js"></script>
+</body>
+</html>
